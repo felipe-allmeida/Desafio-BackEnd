@@ -1,0 +1,87 @@
+version: '3.4'
+
+services:
+  bikerental.api:
+    image: ${DOCKER_REGISTRY-}bikerental/bikerentalapi.api:${PLATFORM:-linux}-${TAG:-latest}
+    build:
+      context: .
+      dockerfile: src/Services/BikeRental/BikeRental.API/Dockerfile
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTP_PORTS=80
+      - ASPNETCORE_HTTPS_PORTS=81
+    ports:
+      - 5100:80
+      - 9100:81
+    networks:
+      - app-network
+    volumes:
+      - ${HOME}/.microsoft/usersecrets:/home/app/.microsoft/usersecrets:ro
+      - ${HOME}/.aspnet/https:/home/app/.aspnet/https:ro
+    depends_on:
+      - sqldata
+      - minio
+      - rabbitmq
+  
+  sqldata:
+    image: postgres:16
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_USER=user
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - sqldata:/var/lib/postgresql/data/pgdata
+    ports:
+      - 5434:5432
+    networks:
+      - app-network
+    expose: 
+      - 5432
+
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=accesskey
+      - MINIO_ROOT_PASSWORD=secretkey
+      - MINIO_STORAGE_CLASS_STANDARD_ERC_PARITY=4
+    volumes:
+      - storage:/data
+      - storageconfig:/root/.minio
+    command: server --address ":9000" --console-address ":9001" /data
+    networks:
+     - app-network
+    expose: 
+      - 9000
+      - 9001
+  
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: rabbitmq
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: password
+    ports:
+      - 5672:5672
+      - 15672:15672 # Web UI
+    networks:
+      - app-network
+
+
+
+volumes:
+  sqldata:
+    external: false
+  storage:
+    external: false
+  storageconfig:
+    external: false
+
+networks:
+  app-network:
+    name: app-network
+    driver: bridge
