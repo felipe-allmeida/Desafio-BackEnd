@@ -4,7 +4,8 @@ namespace BikeRental.Domain.Models.BikeAggregate
 {
     public interface IBikeRepository : IRepository<Bike>
     {
-        Task<Bike> GetByIdAsync(long id);
-        Task<bool> ExistsByPlateAsync(string plate);
+        Task<bool> BikeHasRentals(long id);
+        Task<Bike?> GetByIdAsync(long id);
+        Task<bool> ExistsByPlateAsync(string plate);        
     }
 }

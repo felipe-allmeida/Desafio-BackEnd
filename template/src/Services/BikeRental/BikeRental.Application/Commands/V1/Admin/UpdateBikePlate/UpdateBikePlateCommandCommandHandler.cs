@@ -1,12 +1,18 @@
 ﻿using BikeRental.Domain.Exceptions;
 using BikeRental.Domain.Models.BikeAggregate;
+using BikeRental.Domain.Models.RentalAggregate;
 using MediatR;
 
 namespace BikeRental.Application.Commands.V1.Admin.UpdateBikePlate
 {
-    public class UpdateBikePlateCommandCommandHandler(IBikeRepository repository) : IRequestHandler<UpdateBikePlateCommand>
+    public class UpdateBikePlateCommandCommandHandler : IRequestHandler<UpdateBikePlateCommand>
     {
-        private readonly IBikeRepository _repository = repository ?? throw new ArgumentNullException(nameof(repository));
+        private readonly IBikeRepository _repository;
+
+        public UpdateBikePlateCommandCommandHandler(IBikeRepository repository)
+        {
+            _repository = repository ?? throw new ArgumentNullException(nameof(repository));
+        }
 
         public async Task Handle(UpdateBikePlateCommand request, CancellationToken cancellationToken)
         {
@@ -14,8 +20,8 @@ namespace BikeRental.Application.Commands.V1.Admin.UpdateBikePlate
 
             if (bike is null) throw new NotFoundException();
 
-            if (!await _repository.ExistsByPlateAsync(request.Plate))
-                throw new ConflictException($"Bike with {request.Plate} already exists");
+            if (await _repository.ExistsByPlateAsync(request.Plate))
+                throw new ConflictException($"Bike with plate '{request.Plate}' already exists");
 
             bike.UpdatePlate(request.Plate);
 

@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 using BuildingBlocks.Common.Extensions;
+using BikeRental.Application.IntegrationEvents;
 
 namespace BikeRental.Application.Behaviours
 {
@@ -10,14 +11,13 @@ namespace BikeRental.Application.Behaviours
     {
         private readonly ILogger<TransactionBehavior<TRequest, TResponse>> _logger;
         private readonly BikeRentalContext _dbContext;
-        //private readonly IOrderingIntegrationEventService _orderingIntegrationEventService;
+        private readonly IIntegrationEventService _integrationEventService;
 
-        public TransactionBehavior(BikeRentalContext dbContext,
-            //IOrderingIntegrationEventService orderingIntegrationEventService,
+        public TransactionBehavior(BikeRentalContext dbContext, IIntegrationEventService orderingIntegrationEventService,
             ILogger<TransactionBehavior<TRequest, TResponse>> logger)
         {
             _dbContext = dbContext ?? throw new ArgumentException(nameof(BikeRentalContext));
-            //_orderingIntegrationEventService = orderingIntegrationEventService ?? throw new ArgumentException(nameof(orderingIntegrationEventService));
+            _integrationEventService = orderingIntegrationEventService ?? throw new ArgumentException(nameof(orderingIntegrationEventService));
             _logger = logger ?? throw new ArgumentException(nameof(ILogger));
         }
 
@@ -52,7 +52,7 @@ namespace BikeRental.Application.Behaviours
 
                         transactionId = transaction.TransactionId;
                     }
-                    //await _orderingIntegrationEventService.PublishEventsThroughEventBusAsync(transactionId);
+                    await _integrationEventService.PublishEventsThroughEventBusAsync(transactionId);
                 });
             }
             catch (Exception ex)

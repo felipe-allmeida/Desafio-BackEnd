@@ -5,9 +5,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BikeRental.Application.Queries.V1.Admin.GetBike
 {
-    public class GetBikeQueryHandler(IBikeQueryRepository queryRepository) : IRequestHandler<GetBikeQuery, BikeDto?>
+    public class GetBikeQueryHandler : IRequestHandler<GetBikeQuery, BikeDto?>
     {
-        private readonly IBikeQueryRepository _queryRepository = queryRepository ?? throw new ArgumentNullException(nameof(queryRepository));
+        private readonly IBikeQueryRepository _queryRepository;
+
+        public GetBikeQueryHandler(IBikeQueryRepository queryRepository)
+        {
+            _queryRepository = queryRepository ?? throw new ArgumentNullException(nameof(queryRepository));
+        }
 
         public async Task<BikeDto?> Handle(GetBikeQuery request, CancellationToken cancellationToken)
         {

@@ -2,7 +2,7 @@ version: '3.4'
 
 services:
   bikerental.api:
-    image: ${DOCKER_REGISTRY-}bikerental/bikerentalapi.api:${PLATFORM:-linux}-${TAG:-latest}
+    image: ${DOCKER_REGISTRY-}bikerental/bikerental.api:${PLATFORM:-linux}-${TAG:-latest}
     build:
       context: .
       dockerfile: src/Services/BikeRental/BikeRental.API/Dockerfile
@@ -65,18 +65,20 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: user
       RABBITMQ_DEFAULT_PASS: password
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
     ports:
       - 5672:5672
       - 15672:15672 # Web UI
     networks:
       - app-network
 
-
-
 volumes:
   sqldata:
     external: false
   storage:
+    external: false
+  rabbitmq_data:
     external: false
   storageconfig:
     external: false
@@ -85,3 +87,4 @@ networks:
   app-network:
     name: app-network
     driver: bridge
+

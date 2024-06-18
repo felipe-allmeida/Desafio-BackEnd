@@ -8,7 +8,8 @@ namespace BikeRental.CrossCutting.Storage.Models
 {
     public record BlobDto
     {
-        public string ETag { get; init; }
-        public string BlobName { get; init; }
+        public required string ETag { get; init; }
+        public required string BlobName { get; init; }
+        public required string Url { get; init; }
     }
 }

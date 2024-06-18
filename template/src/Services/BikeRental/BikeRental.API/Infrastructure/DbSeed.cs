@@ -2,12 +2,10 @@
 using BikeRental.Data;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Routing;
-using BikeRental.Application.Services;
-using System.Data;
 using BikeRental.API.Infrastructure.Security;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
+using BikeRental.Domain.Models.BikeAggregate;
 
 namespace BikeRental.API.Infrastructure
 {
@@ -90,6 +88,17 @@ namespace BikeRental.API.Infrastructure
                 }
             }
 
+            if (!context.Set<Bike>().Any())
+            {
+                for (int i = 0; i < 10; i++)
+                {
+                    var bike = new Bike($"ABCD0{i.ToString("D2")}", 2021, $"Model {i}");
+
+                    context.Set<Bike>().Add(bike);
+
+                    await context.SaveChangesAsync();
+                }
+            }
         }
 
         public static async Task CreateOrUpdateRole(BikeRentalContext context, RoleStore<IdentityRole> roleStore, string roleName, Claim[] claims)

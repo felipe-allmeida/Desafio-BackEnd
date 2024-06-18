@@ -1,5 +1,5 @@
 ﻿namespace BikeRental.API.DTOs.V1.Requests
-{
+{    
     public record CreateBikeDto
     {
         public int Year { get; init; }

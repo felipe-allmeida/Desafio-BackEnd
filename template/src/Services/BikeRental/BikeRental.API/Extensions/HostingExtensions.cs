@@ -7,12 +7,30 @@ using BikeRental.API.Infrastructure.Serialization;
 using BikeRental.API.Services;
 using BikeRental.Application.Behaviours;
 using BikeRental.Application.Commands.V1.Admin.CreateBike;
+using BikeRental.Application.Commands.V1.Admin.CreateDeliveryRequest;
 using BikeRental.Application.Commands.V1.Admin.UpdateBikePlate;
+using BikeRental.Application.Commands.V1.User.CreateDeliveryRider;
+using BikeRental.Application.Commands.V1.User.RentBike;
+using BikeRental.Application.Commands.V1.User.UpdateDeliveryRiderCnh;
+using BikeRental.Application.Commands.V1.User.UpdateRentStatus;
+using BikeRental.Application.IntegrationEvents;
+using BikeRental.Application.IntegrationEvents.EventHandling;
+using BikeRental.Application.IntegrationEvents.Events;
+using BikeRental.Application.Queries.V1.User.GetRentBikeInfo;
+using BikeRental.CrossCutting.EventBus;
+using BikeRental.CrossCutting.EventBus.Abstractions;
+using BikeRental.CrossCutting.EventBusRabbitMQ;
+using BikeRental.CrossCutting.IntegrationEventLog;
+using BikeRental.CrossCutting.IntegrationEventLog.Services;
 using BikeRental.CrossCutting.MinIO.Extensions;
 using BikeRental.Data;
 using BikeRental.Data.QueryRepositories;
 using BikeRental.Data.Repositories;
 using BikeRental.Domain.Models.BikeAggregate;
+using BikeRental.Domain.Models.DeliveryRequestAggregate;
+using BikeRental.Domain.Models.DeliveryRequestNotificationAggregate;
+using BikeRental.Domain.Models.DeliveryRiderAggregate;
+using BikeRental.Domain.Models.RentalAggregate;
 using BuildingBlocks.Identity;
 using FluentValidation;
 using HealthChecks.UI.Client;
@@ -21,6 +39,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using RabbitMQ.Client;
+using System.Data.Common;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -67,7 +87,8 @@ namespace BikeRental.API.Extensions
             // Add Health Checks
             builder.Services.AddHealthChecks()
                 .AddCheck("self", () => HealthCheckResult.Healthy())
-                .AddNpgSql(configuration.GetConnectionString("BikeRentalContext")!, name: "Db-check", tags: Array.Empty<string>());
+                .AddNpgSql(configuration.GetConnectionString("Database")!, name: "db-check", tags: ["bikerentaldb"])
+                .AddRabbitMQ($"amqp://{configuration["EventBus:RabbitMQ:EventBusConnection"]}", name: "rabbitmq-check", tags: ["rabbitmqbus"]);
         }
 
         public static void AddApplicationServices(this IHostApplicationBuilder builder)
@@ -75,15 +96,29 @@ namespace BikeRental.API.Extensions
             IConfiguration configuration = builder.Configuration;
 
             builder.Services.AddMigration<BikeRentalContext, DbSeed>();
+            builder.Services.AddMigration<IntegrationEventLogContext>();
 
-            // Add DbContext
             builder.Services.AddDbContext<BikeRentalContext>(options =>
             {
-                options.UseNpgsql(configuration.GetConnectionString("BikeRentalContext")!,
+                options.UseNpgsql(configuration.GetConnectionString("Database")!,
                     npgsqlOptionsAction: options =>
                     {
+                        //Configuring Connection Resiliency: https://docs.microsoft.com/en-us/ef/core/miscellaneous/connection-resiliency 
                         options.EnableRetryOnFailure(maxRetryCount: 15, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null);
                     });
+
+                if (builder.Environment.IsDevelopment())
+                {
+                    options.EnableSensitiveDataLogging();
+                }
+            }, ServiceLifetime.Scoped);
+
+            builder.Services.AddDbContext<IntegrationEventLogContext>(options =>
+            {
+                options.UseNpgsql(configuration.GetConnectionString("Database")!, options =>
+                {
+                    options.EnableRetryOnFailure(maxRetryCount: 15, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null);
+                });
 
                 if (builder.Environment.IsDevelopment())
                 {
@@ -121,14 +156,29 @@ namespace BikeRental.API.Extensions
                 cfg.AddOpenBehavior(typeof(ValidatorBehavior<,>));
             });
 
-            services.AddSingleton<IValidator<CreateBikeCommand>, CreateBikeCommandValidation>();
+            services.AddSingleton<IValidator<CreateBikeCommand>, CreateBikeCommandValidator>();
             services.AddSingleton<IValidator<UpdateBikePlateCommand>, UpdateBikePlateCommandValidator>();
+            services.AddSingleton<IValidator<CreateDeliveryRiderCommand>, CreateDeliveryRiderCommandValidator>();
+            services.AddSingleton<IValidator<UpdateDeliveryRiderCnhCommand>, UpdateDeliveryRiderCnhValidator>();
+            services.AddSingleton<IValidator<RentBikeCommand>, RentBikeCommandValidator>();
+            services.AddSingleton<IValidator<UpdateRentStatusCommand>, UpdateRentStatusCommandValidator>();
+            services.AddSingleton<IValidator<CreateDeliveryRequestCommand>,  CreateDeliveryRequestCommandValidator>();
+
+            services.AddSingleton<IValidator<GetRentBikeInfoQuery>, GetRentBikeInfoQueryValidator>();
 
             services.AddScoped<ILoggedUserService, LoggedUserService>();
 
             services.AddScoped<IBikeRepository, BikeRepository>();
             services.AddScoped<IBikeQueryRepository, BikeQueryRepository>();
 
+            services.AddScoped<IDeliveryRiderRepository, DeliveryRiderRepository>();
+            services.AddScoped<IDeliveryRiderQueryRepository, DeliveryRiderQueryRepository>();
+
+            services.AddScoped<IRentalRepository, RentalRepository>();
+            services.AddScoped<IRentalQueryRepository, RentalQueryRepository>();
+
+            services.AddScoped<IDeliveryRequestRepository, DeliveryRequestRepository>();
+            services.AddScoped<IDeliveryRequestNotificationRepository,  DeliveryRequestNotificationRepository>();
 
             services.AddJwtAuthentication(configuration);
 
@@ -142,8 +192,66 @@ namespace BikeRental.API.Extensions
 
             services.AddMinIO(configuration);
 
+            services.AddTransient<Func<DbConnection, IIntegrationEventLogService>>(
+                sp => (DbConnection c) => new IntegrationEventLogService(c, typeof(CreateBikeCommand).Assembly));
+            services.AddTransient<IIntegrationEventService, IntegrationEventService>();
+            services.AddSingleton<IRabbitMQPersistentConnection>(sp =>
+            {
+                var logger = sp.GetRequiredService<ILogger<DefaultRabbitMQPersistentConnection>>();
+
+                var factory = new ConnectionFactory()
+                {
+                    HostName = configuration["EventBus:RabbitMQ:EventBusConnection"],
+                    DispatchConsumersAsync = true
+                };
+
+                if (!string.IsNullOrEmpty(configuration["EventBus:RabbitMQ:EventBusUserName"]))
+                    factory.UserName = configuration["EventBus:RabbitMQ:EventBusUserName"];
+
+                if (!string.IsNullOrEmpty(configuration["EventBus:RabbitMQ:EventBusPassword"]))
+                    factory.Password = configuration["EventBus:RabbitMQ:EventBusPassword"];
+
+                var retryCount = 5;
+                var eventBusRetryCountStr = configuration["EventBus:RabbitMQ:EventBusRetryCount"];
+                if (!string.IsNullOrEmpty(eventBusRetryCountStr))
+                {
+                    retryCount = int.Parse(eventBusRetryCountStr);
+                }
+
+                return new DefaultRabbitMQPersistentConnection(factory, logger, retryCount);
+            });
+
+
             //services.AddMandrill(configuration);
             //services.AddSendGrid(configuration);
+        }        
+
+        public static void AddEventBus(this IHostApplicationBuilder builder)
+        {
+            var configuration = builder.Configuration;
+            var services = builder.Services;
+
+            services.AddSingleton<IEventBus, EventBusRabbitMQ>(sp =>
+            {
+                var subscriptionClientName = configuration["EventBus:RabbitMQ:SubscriptionClientName"]!;
+                var rabbitMQPersistentConnection = sp.GetRequiredService<IRabbitMQPersistentConnection>();
+                var logger = sp.GetRequiredService<ILogger<EventBusRabbitMQ>>();
+                var eventBusSubcriptionsManager = sp.GetRequiredService<IEventBusSubscriptionsManager>();
+
+                var retryCount = 5;
+                var evtBusRetryCountStr = configuration["EventBus:RabbitMQ:EventBusRetryCount"];
+
+                if (!string.IsNullOrEmpty(evtBusRetryCountStr))
+                {
+                    retryCount = int.Parse(evtBusRetryCountStr);
+                }
+
+                return new EventBusRabbitMQ(rabbitMQPersistentConnection, logger, sp, eventBusSubcriptionsManager, subscriptionClientName, retryCount);
+            });
+
+            services.AddSingleton<IEventBusSubscriptionsManager, InMemoryEventBusSubscriptionsManager>();
+
+            services.AddTransient<DeliveryRequestIntegrationIntegrationEventHandler>();
         }
 
         /// <summary>
@@ -166,6 +274,11 @@ namespace BikeRental.API.Extensions
 
             var env = app.Services.GetRequiredService<IWebHostEnvironment>();
             app.UseExceptionHandler(ExceptionHandlerMiddleware.ExceptionHandler(env));
+
+            var eventBus = app.Services.GetRequiredService<IEventBus>();
+
+            eventBus.Subscribe<DeliveryRequestCreatedIntegrationEvent, DeliveryRequestIntegrationIntegrationEventHandler>();
+            eventBus.Subscribe<DeliveryRequestNotificationCreatedIntegrationEvent, DeliveryRequestIntegrationIntegrationEventHandler>();
 
             app.UseAuthentication();
             app.UseAuthorization();

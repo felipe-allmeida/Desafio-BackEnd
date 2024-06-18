@@ -6,6 +6,7 @@ builder.AddServiceDefaults();
 builder.AddOpenApi();
 builder.AddApplicationServices();
 builder.AddApplicationIntegrationServices();
+builder.AddEventBus();
 
 var app = builder.Build();
 

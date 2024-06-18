@@ -16,7 +16,7 @@ namespace BikeRental.Data.EntityTypeConfiguration
             builder.HasIndex(x => x.Id);
             builder.Property(x => x.Id).ValueGeneratedOnAdd();
 
-            builder.HasIndex(x => x.Plate);
+            builder.HasIndex(x => x.Plate).IsUnique();
             builder.HasIndex(x => x.CreatedAt).IsDescending(true);
             builder.HasIndex(x => x.UpdatedAt).IsDescending(true);
             builder.HasIndex(x => x.DeletedAt).IsDescending(true);
@@ -29,8 +29,7 @@ namespace BikeRental.Data.EntityTypeConfiguration
 
             builder.Property(o => o.CreatedAt).HasDefaultValueSql("NOW()").ValueGeneratedOnAdd();
 
-            builder.Property(o => o.UpdatedAt).ValueGeneratedOnUpdate()
-                .Metadata.SetAfterSaveBehavior(Microsoft.EntityFrameworkCore.Metadata.PropertySaveBehavior.Save);
+            builder.Property(o => o.UpdatedAt).HasDefaultValueSql("NOW()").ValueGeneratedOnAddOrUpdate();
 
             builder.Property(o => o.DeletedAt);
         }

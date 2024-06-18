@@ -8,7 +8,7 @@
         public int Year { get; init; }
         public bool IsDeleted { get; init; }
         public DateTimeOffset CreatedAt { get; init; }
-        public DateTimeOffset? UpdatedAt { get; init; }
+        public DateTimeOffset UpdatedAt { get; init; }
         public DateTimeOffset? DeletedAt { get; init; }
     }
 }

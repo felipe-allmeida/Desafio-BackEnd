@@ -12,6 +12,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\CrossCutting\EventBus\BikeRental.CrossCutting.EventBusRabbitMQ\BikeRental.CrossCutting.EventBusRabbitMQ.csproj" />
+    <ProjectReference Include="..\..\..\CrossCutting\EventBus\BikeRental.CrossCutting.IntegrationEventLog\BikeRental.CrossCutting.IntegrationEventLog.csproj" />
     <ProjectReference Include="..\..\..\CrossCutting\Storage\BikeRental.CrossCutting.Storage.MinIO\BikeRental.CrossCutting.Storage.MinIO.csproj" />
     <ProjectReference Include="..\BikeRental.Data\BikeRental.Data.csproj" />
     <ProjectReference Include="..\BikeRental.Domain\BikeRental.Domain.csproj" />

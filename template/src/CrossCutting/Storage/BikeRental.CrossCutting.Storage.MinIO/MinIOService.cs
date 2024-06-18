@@ -1,6 +1,8 @@
-﻿using BikeRental.CrossCutting.Storage.Abstractions;
+﻿using BikeRental.CrossCutting.MinIO.Options;
+using BikeRental.CrossCutting.Storage.Abstractions;
 using BikeRental.CrossCutting.Storage.Models;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using Minio;
 using Minio.DataModel;
 using Minio.DataModel.Args;
@@ -14,10 +16,12 @@ namespace BikeRental.CrossCutting.Storage.MinIO
     {
 
         private readonly IMinioClient _client;
+        private readonly MinIOOptions _options;
 
-        public MinIOService(IMinioClient client, IConfiguration configuration)
+        public MinIOService(IMinioClient client, IOptions<MinIOOptions> options)
         {
             _client = client ?? throw new ArgumentNullException(nameof(client));
+            _options = options.Value;
         }
 
         public async Task<string> GetBlobAsync(string container, string blobName)
@@ -29,7 +33,7 @@ namespace BikeRental.CrossCutting.Storage.MinIO
 
             var response = await _client.PresignedGetObjectAsync(new PresignedGetObjectArgs()
                 .WithBucket(container)
-                
+
                 .WithObject(blobName)
                 .WithExpiry(3600)
             );
@@ -89,15 +93,16 @@ namespace BikeRental.CrossCutting.Storage.MinIO
                 })
                 .WithContentType(contentType));
 
-            http://localhost:9000/test/documents/cnh.jpeg
-                 //http(s)://<minio-server-endpoint>:<port>/<bucket-name>/<object-key>
-        http://localhost:9000/test/documents/cnh.jpeg
+            //http://localhost:9000/test/documents/cnh.jpeg
+            //http(s)://<minio-server-endpoint>:<port>/<bucket-name>/<object-key>
+            //http://localhost:9000/test/documents/cnh.jpeg
 
 
             return new BlobDto
             {
                 ETag = response.Etag,
-                BlobName = response.ObjectName
+                BlobName = response.ObjectName,
+                Url = $"{_options.ExternalUrl}/{container}/{response.ObjectName}"
             };
         }
 

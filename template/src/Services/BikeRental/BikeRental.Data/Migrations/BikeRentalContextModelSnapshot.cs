@@ -54,9 +54,10 @@ namespace BikeRental.Data.Migrations
                         .HasMaxLength(7)
                         .HasColumnType("character varying(7)");
 
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .ValueGeneratedOnUpdate()
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("NOW()");
 
                     b.Property<int>("Year")
                         .HasColumnType("integer");
@@ -71,12 +72,198 @@ namespace BikeRental.Data.Migrations
 
                     b.HasIndex("Id");
 
-                    b.HasIndex("Plate");
+                    b.HasIndex("Plate")
+                        .IsUnique();
 
                     b.HasIndex("UpdatedAt")
                         .IsDescending();
 
                     b.ToTable("bikes", "bike_rental");
+                });
+
+            modelBuilder.Entity("BikeRental.Domain.Models.DeliveryRequestAggregate.DeliveryRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<long?>("DeliveryRiderId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("PriceCents")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeliveryRiderId");
+
+                    b.HasIndex("Id");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("delivery_request", "bike_rental");
+                });
+
+            modelBuilder.Entity("BikeRental.Domain.Models.DeliveryRequestNotificationAggregate.DeliveryRequestNotification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<Guid>("DeliveryRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("DeliveryRiderId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Id");
+
+                    b.HasIndex("DeliveryRiderId", "DeliveryRequestId")
+                        .IsUnique();
+
+                    b.ToTable("delivery_request_notifications", "bike_rental");
+                });
+
+            modelBuilder.Entity("BikeRental.Domain.Models.DeliveryRiderAggregate.DeliveryRider", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset>("Birthday")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<long?>("CurrentBikeId")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("CurrentDeliveryRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt")
+                        .IsDescending();
+
+                    b.HasIndex("DeletedAt")
+                        .IsDescending();
+
+                    b.HasIndex("Id");
+
+                    b.HasIndex("UpdatedAt")
+                        .IsDescending();
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("delivery_riders", "bike_rental");
+                });
+
+            modelBuilder.Entity("BikeRental.Domain.Models.RentalAggregate.Rental", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("BikeId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<int>("DailyPriceCents")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("DeliveryRiderId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("EndAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("ExpectedReturnAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("PenaltyPriceCents")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PriceCents")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("StartAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BikeId");
+
+                    b.HasIndex("DeliveryRiderId");
+
+                    b.HasIndex("Id");
+
+                    b.HasIndex("StartAt", "EndAt");
+
+                    b.ToTable("rental", "bike_rental");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -312,6 +499,89 @@ namespace BikeRental.Data.Migrations
                     b.ToTable("AspNetUserTokens", "bike_rental");
                 });
 
+            modelBuilder.Entity("BikeRental.Domain.Models.DeliveryRequestAggregate.DeliveryRequest", b =>
+                {
+                    b.HasOne("BikeRental.Domain.Models.DeliveryRiderAggregate.DeliveryRider", null)
+                        .WithMany("DeliveryRequests")
+                        .HasForeignKey("DeliveryRiderId");
+                });
+
+            modelBuilder.Entity("BikeRental.Domain.Models.DeliveryRiderAggregate.DeliveryRider", b =>
+                {
+                    b.OwnsOne("BikeRental.Domain.ValueObjects.CNH", "Cnh", b1 =>
+                        {
+                            b1.Property<long>("DeliveryRiderId")
+                                .HasColumnType("bigint");
+
+                            b1.Property<string>("Image")
+                                .IsRequired()
+                                .HasColumnType("text");
+
+                            b1.Property<string>("Number")
+                                .IsRequired()
+                                .HasMaxLength(11)
+                                .HasColumnType("character varying(11)");
+
+                            b1.Property<int>("Type")
+                                .HasColumnType("integer");
+
+                            b1.HasKey("DeliveryRiderId");
+
+                            b1.HasIndex("Number")
+                                .IsUnique();
+
+                            b1.ToTable("delivery_riders", "bike_rental");
+
+                            b1.WithOwner()
+                                .HasForeignKey("DeliveryRiderId");
+                        });
+
+                    b.OwnsOne("BikeRental.Domain.ValueObjects.CNPJ", "Cnpj", b1 =>
+                        {
+                            b1.Property<long>("DeliveryRiderId")
+                                .HasColumnType("bigint");
+
+                            b1.Property<string>("Value")
+                                .IsRequired()
+                                .HasMaxLength(18)
+                                .HasColumnType("character varying(18)");
+
+                            b1.HasKey("DeliveryRiderId");
+
+                            b1.HasIndex("Value")
+                                .IsUnique();
+
+                            b1.ToTable("delivery_riders", "bike_rental");
+
+                            b1.WithOwner()
+                                .HasForeignKey("DeliveryRiderId");
+                        });
+
+                    b.Navigation("Cnh");
+
+                    b.Navigation("Cnpj")
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BikeRental.Domain.Models.RentalAggregate.Rental", b =>
+                {
+                    b.HasOne("BikeRental.Domain.Models.BikeAggregate.Bike", "Bike")
+                        .WithMany("Rentals")
+                        .HasForeignKey("BikeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BikeRental.Domain.Models.DeliveryRiderAggregate.DeliveryRider", "DeliveryRider")
+                        .WithMany("Rentals")
+                        .HasForeignKey("DeliveryRiderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Bike");
+
+                    b.Navigation("DeliveryRider");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -361,6 +631,18 @@ namespace BikeRental.Data.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("BikeRental.Domain.Models.BikeAggregate.Bike", b =>
+                {
+                    b.Navigation("Rentals");
+                });
+
+            modelBuilder.Entity("BikeRental.Domain.Models.DeliveryRiderAggregate.DeliveryRider", b =>
+                {
+                    b.Navigation("DeliveryRequests");
+
+                    b.Navigation("Rentals");
                 });
 #pragma warning restore 612, 618
         }

@@ -24,6 +24,12 @@ namespace BikeRental.API.Infrastructure.Filters
                 case ConflictException:
                     HandleConflictException(context);
                     break;
+                case UnauthorizedException:
+                    HandleUnauthorizedException(context);
+                    break;
+                case ForbiddenException:
+                    HandleForbiddenException(context);
+                    break;
                 default:
                     context.ExceptionHandled = false;
                     return;
